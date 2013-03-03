@@ -1,5 +1,6 @@
 #include "buffer.h"
 #include <string.h>
+#include <assert.h>
 
 void init(buffer *d) 
 {
@@ -23,8 +24,9 @@ int push_back(buffer *d, io_data element)
 
 io_data pop_back(buffer *d)
 {
+	assert(d->size != 0);
 	if (d->size == 0) {
-		; //assert 
+		; 	//FIXME handle error
 	}
 
 	size_t tmp = d->tail;
@@ -47,8 +49,9 @@ int push_front(buffer *d, io_data element)
 
 io_data pop_front(buffer *d)
 {
+	assert(d->size != 0);
 	if (d->size == 0) {
-		;//assert 
+		;	//FIXME handle error
 	}
 
 	size_t tmp = d->tail;
