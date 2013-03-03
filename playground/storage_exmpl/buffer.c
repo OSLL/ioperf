@@ -1,9 +1,10 @@
 #include "buffer.h"
+#include <string.h>
 
 void init(buffer *d) 
 {
 	d->size = 0;
-	// memset(list->data, 0, MAX_BUFFER_SIZE * sizeof(void*));
+	memset(d->data, 0, MAX_BUFFER_SIZE * sizeof(io_data));
 	d->tail = 0;
 	d->head = MAX_BUFFER_SIZE - 1;
 }
