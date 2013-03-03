@@ -4,11 +4,11 @@ void init(buffer *d)
 {
 	d->size = 0;
 	// memset(list->data, 0, MAX_BUFFER_SIZE * sizeof(void*));
-	tail = 0;
-	head = MAX_BUFFER_SIZE - 1;
+	d->tail = 0;
+	d->head = MAX_BUFFER_SIZE - 1;
 }
 
-int push_back(buffer *d, io_data const & element)
+int push_back(buffer *d, io_data element)
 {
 	if (d->size >= MAX_BUFFER_SIZE) { 
 		return 0;
@@ -32,7 +32,7 @@ io_data pop_back(buffer *d)
 	return d->data[tmp]; 
 }
 
-int push_front(buffer *d, io_data const & element)
+int push_front(buffer *d, io_data element)
 {
 	if (d->size >= MAX_BUFFER_SIZE) { 
 		return 0;
@@ -59,11 +59,11 @@ io_data pop_front(buffer *d)
 io_data * front(buffer *d)
 {
 	
-	return (d->size == 0) ? NULL : &(d->data[head]);
+	return (d->size == 0) ? NULL : &(d->data[d->head]);
 }
 
 io_data * back(buffer *d)
 {	
-	return (d->size == 0) ? NULL : &(d->data[tail]);
+	return (d->size == 0) ? NULL : &(d->data[d->tail]);
 }
 

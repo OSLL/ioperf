@@ -6,22 +6,20 @@
 
 #define MAX_BUFFER_SIZE ((size_t)100)
 
-
-struct buffer
-{
-	struct io_data data[MAX_BUFFER_SIZE];
+typedef struct {
+	io_data data[MAX_BUFFER_SIZE];
 	size_t size;
 	size_t head;
 	size_t tail;
-};
+} buffer;
 
 void init(buffer *d);
 
-int push_back(buffer *d, io_data const & element);
+int push_back(buffer *d, io_data element);
 
 io_data pop_back(buffer *d);
 
-int push_front(buffer *d, io_data const & element);
+int push_front(buffer *d, io_data element);
 
 io_data pop_front(buffer *d);
 
