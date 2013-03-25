@@ -1,0 +1,8 @@
+; -- start job file --
+[sequential-writes]
+rw=write
+size=2*$mb_memory
+
+
+  
+; -- end job file --

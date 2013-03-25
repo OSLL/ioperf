@@ -1,0 +1,8 @@
+; -- start job file --
+[sequential-reads]
+rw=read
+size=512mb;2*$mb_memory
+
+
+  
+; -- end job file --
