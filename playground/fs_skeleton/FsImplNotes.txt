@@ -1,0 +1,21 @@
+Author: Artur Guletzky (hatless.fox@gmail.com)
+
+This document contains some notes, thoughts and references 
+realted to implementation of VFS compatible file system.
+
+References:
+	* http://lwn.net/Articles/57369/
+  	  https://gist.github.com/prashants/3496839 <- Recent example
+	  acticle that describes how fs can be writtern
+	* http://pages.cpsc.ucalgary.ca/~crwth/programming/VFS/VFS.php
+	  another article (BEWARE terrible text coloring!)
+        * http://ftp.samba.org/pub/samba/cifs-cvs/ols2006-fs-tutorial-smf.pdf
+          tutorial presentation on the same theme
+	* Sources of ramfs/rootfs (linux/fs/ramfs/)
+
+1) Written module skeleton. 
+   In init module must register our file system. @ filesystems.c:69
+   kill_litter_super - standard VFS function for killing super.
+   INV: d_genocide @ dcache.c:2985
+   
+2) *fs_fill_super is for super block parsing on mount
