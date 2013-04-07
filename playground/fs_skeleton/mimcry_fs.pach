@@ -1,0 +1,24 @@
+diff --git a/fs/Kconfig b/fs/Kconfig
+index f95ae3a..ff3b84f 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -4,6 +4,8 @@
+ 
+ menu "File systems"
+ 
++source "fs/mimfs/Kconfig"
++
+ # Use unaligned word dcache accesses
+ config DCACHE_WORD_ACCESS
+        bool
+diff --git a/fs/Makefile b/fs/Makefile
+index 1d7af79..d743d50 100644
+--- a/fs/Makefile
++++ b/fs/Makefile
+@@ -126,3 +126,5 @@ obj-$(CONFIG_GFS2_FS)           += gfs2/
+ obj-y				+= exofs/ # Multiple modules
+ obj-$(CONFIG_CEPH_FS)		+= ceph/
+ obj-$(CONFIG_PSTORE)		+= pstore/
++
++obj-$(CONFIG_MIMFS_FS)		+= mimfs/
+\ No newline at end of file
