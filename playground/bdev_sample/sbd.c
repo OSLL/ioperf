@@ -62,9 +62,11 @@ static struct sbd_device {
  */
 static void sbd_transfer(struct sbd_device *dev, sector_t sector,
         unsigned long nsect, char *buffer, int write) {
-    unsigned long offset = sector * logical_block_size;
-    unsigned long nbytes = nsect * logical_block_size;
-
+    // unsigned long offset = sector * logical_block_size;
+    // unsigned long nbytes = nsect * logical_block_size;
+    unsigned long offset = sector * KERNEL_SECTOR_SIZE;
+    unsigned long nbytes = nsect * KERNEL_SECTOR_SIZE;
+    
     if ((offset + nbytes) > dev->size) {
         printk (KERN_NOTICE "sbd: Beyond-end write (%ld %ld)\n", offset, nbytes);
         return;
@@ -209,7 +211,8 @@ static int __init sbd_init(void) {
     Device.gd->fops = &sbd_ops;
     Device.gd->private_data = &Device;
     strcpy(Device.gd->disk_name, "sbd0");
-    set_capacity(Device.gd, nsectors);
+    // set_capacity(Device.gd, nsectors);
+    set_capacity(Device.gd, nsectors*(logical_block_size/KERNEL_SECTOR_SIZE));
     Device.gd->queue = Queue;
     add_disk(Device.gd);
 
