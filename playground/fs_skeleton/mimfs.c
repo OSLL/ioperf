@@ -24,16 +24,16 @@ static const struct address_space_operations mimfs_aops;
 // Heart of Mim FS:
 // file block number --> logic block number (device block number)
 
-#define BDEV_BLOCKS 5
-
 static int mimfs_get_block(struct inode *inode,    //file's inode
 			   sector_t iblock,        //file's block number
 			   struct buffer_head *bh, //bh to initalize
 			   int create) {           //XX what is precise meaning?
-        sector_t total_device_blcks = BDEV_BLOCKS;
-        printk("MIMFS: Block with number %lu is required\n", iblock); 
+        //TODO null check
   
-	
+        sector_t total_device_blcks = get_capacity(inode->i_sb->s_bdev->bd_disk); 
+	//printk("Total device block count is %lu\n ", total_device_blcks);
+        printk("MIMFS: Block with number %lu is required\n", iblock); 
+  	
 	//now we assuming that file is single.
 	if (iblock > total_device_blcks) { return -ENOSPC; }
 	//	bh = sb_getblk(inode->i_sb, total_device_blcks - iblock);
@@ -169,9 +169,9 @@ static const struct inode_operations mimfs_dir_inode_ops = {
 // File related operations
 
 static void setup_qname(const char * name, struct qstr * qname) {
-  qname->name = name;
-  qname->len  = strlen(name);
-  qname->hash = full_name_hash(name, qname->len);
+        qname->name = name;
+	qname->len  = strlen(name);
+	qname->hash = full_name_hash(name, qname->len);
 }
 
 static int mimfs_create_file(struct inode *parent, struct dentry *pdentry, 
@@ -190,7 +190,6 @@ static int mimfs_create_file(struct inode *parent, struct dentry *pdentry,
 	}
 	return file_inode ? 0 : -1;
 }
-
 
 
 static const struct file_operations mimfs_file_ops = {
@@ -212,8 +211,11 @@ static struct super_operations mimfs_super_ops = {
         .drop_inode = generic_delete_inode, //standard
 };
 
-#define MIMFS_BLOCK_SIZE       PAGE_CACHE_SIZE
-#define MIMFS_BLOCK_SIZE_BITS  PAGE_CACHE_SHIFT
+//#define MIMFS_BLOCK_SIZE       PAGE_CACHE_SIZE
+
+//PAGE_CACHE_SHIFT default is 12 (x86), so page size is 1 << 12 = 4kB 
+// set 4 bytes file block size
+#define MIMFS_BLOCK_SIZE_BITS  2 /*PAGE_CACHE_SHIFT*/
 
 //init super block
 static int mimfs_fill_super(struct super_block *sb, void *data, int silent) {
@@ -221,8 +223,8 @@ static int mimfs_fill_super(struct super_block *sb, void *data, int silent) {
 
 	printk("MIMFS: Super block parsing started\n");
         //** sb->s_maxbytes    = max file size, do we need it? 
-        sb->s_blocksize      = MIMFS_BLOCK_SIZE;      // b size in bytes
-        sb->s_blocksize_bits = MIMFS_BLOCK_SIZE_BITS; // b size in bits
+        sb->s_blocksize      = 1 << MIMFS_BLOCK_SIZE_BITS;
+        sb->s_blocksize_bits = MIMFS_BLOCK_SIZE_BITS; //how many bits in block size
         sb->s_magic          = MIMFS_MAGIC;
         sb->s_op             = &mimfs_super_ops;
         sb->s_time_gran      = 1;
