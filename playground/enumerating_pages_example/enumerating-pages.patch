@@ -1,0 +1,191 @@
+From 57a0da98399c8e0b7cae2778542308c9f29ab9ea Mon Sep 17 00:00:00 2001
+From: Alexander Shabalin <shabalyn.a@gmail.com>
+Date: Sun, 14 Apr 2013 18:37:40 +0400
+Subject: [PATCH] Enumerating pages like a boss
+
+---
+ Makefile                                       |  2 +-
+ arch/x86/Kconfig                               |  2 ++
+ arch/x86/syscalls/syscall_64.tbl               |  1 +
+ include/linux/syscalls.h                       |  2 ++
+ samples/Kconfig                                |  4 +++
+ samples/Makefile                               |  2 +-
+ samples/enumpages_example/Makefile             |  4 +++
+ samples/enumpages_example/enumpages-inkernel.c | 46 ++++++++++++++++++++++++++
+ samples/enumpages_example/enumpages.c          | 17 ++++++++++
+ samples/enumpages_example/enumpages.h          |  6 ++++
+ 10 files changed, 84 insertions(+), 2 deletions(-)
+ create mode 100644 samples/enumpages_example/Makefile
+ create mode 100644 samples/enumpages_example/enumpages-inkernel.c
+ create mode 100644 samples/enumpages_example/enumpages.c
+ create mode 100644 samples/enumpages_example/enumpages.h
+
+diff --git a/Makefile b/Makefile
+index 04428dc..df7c446 100644
+--- a/Makefile
++++ b/Makefile
+@@ -731,7 +731,7 @@ export mod_sign_cmd
+ 
+ 
+ ifeq ($(KBUILD_EXTMOD),)
+-core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/
++core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/ samples/
+ 
+ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+ 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index e957352..81cb7b8 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -2251,3 +2251,5 @@ source "crypto/Kconfig"
+ source "arch/x86/kvm/Kconfig"
+ 
+ source "lib/Kconfig"
++
++source "samples/Kconfig"
+diff --git a/arch/x86/syscalls/syscall_64.tbl b/arch/x86/syscalls/syscall_64.tbl
+index a582bfe..346d81a 100644
+--- a/arch/x86/syscalls/syscall_64.tbl
++++ b/arch/x86/syscalls/syscall_64.tbl
+@@ -319,6 +319,7 @@
+ 310	64	process_vm_readv	sys_process_vm_readv
+ 311	64	process_vm_writev	sys_process_vm_writev
+ 312	common	kcmp			sys_kcmp
++313   common   enum_cached_pages sys_enum_cached_pages
+ 
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 727f0cd..181da7d 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -868,4 +868,6 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
+ 
+ asmlinkage long sys_kcmp(pid_t pid1, pid_t pid2, int type,
+ 			 unsigned long idx1, unsigned long idx2);
++
++asmlinkage long sys_enum_cached_pages(const char __user *filename);
+ #endif
+diff --git a/samples/Kconfig b/samples/Kconfig
+index 7b6792a..ee5b933 100644
+--- a/samples/Kconfig
++++ b/samples/Kconfig
+@@ -69,4 +69,8 @@ config SAMPLE_RPMSG_CLIENT
+ 	  to communicate with an AMP-configured remote processor over
+ 	  the rpmsg bus.
+ 
++config SAMPLE_ENUMPAGES
++	bool "Enumerate cached pages of a file"
++	default y
++
+ endif # SAMPLES
+diff --git a/samples/Makefile b/samples/Makefile
+index 5ef08bb..18db55a 100644
+--- a/samples/Makefile
++++ b/samples/Makefile
+@@ -1,4 +1,4 @@
+ # Makefile for Linux samples code
+ 
+ obj-$(CONFIG_SAMPLES)	+= kobject/ kprobes/ tracepoints/ trace_events/ \
+-			   hw_breakpoint/ kfifo/ kdb/ hidraw/ rpmsg/ seccomp/
++			   hw_breakpoint/ kfifo/ kdb/ hidraw/ rpmsg/ seccomp/ enumpages_example/
+diff --git a/samples/enumpages_example/Makefile b/samples/enumpages_example/Makefile
+new file mode 100644
+index 0000000..5b29479
+--- /dev/null
++++ b/samples/enumpages_example/Makefile
+@@ -0,0 +1,4 @@
++ifdef CONFIG_SAMPLE_ENUMPAGES
++obj-m += enumpages.o
++obj-y += enumpages-inkernel.o
++endif
+diff --git a/samples/enumpages_example/enumpages-inkernel.c b/samples/enumpages_example/enumpages-inkernel.c
+new file mode 100644
+index 0000000..8ad6b46
+--- /dev/null
++++ b/samples/enumpages_example/enumpages-inkernel.c
+@@ -0,0 +1,46 @@
++#include <linux/syscalls.h>
++#include <linux/mm.h>
++#include <linux/pagemap.h>
++#include <linux/fs.h>
++#include <linux/file.h>
++#include <linux/export.h>
++#include <linux/compiler.h>
++#include "enumpages.h"
++
++// From do_generic_file_read:
++void enum_pages(struct file *filp)
++{
++	struct address_space *mapping = filp->f_mapping;
++	pgoff_t count = (mapping->host->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
++	pgoff_t index;
++	printk(KERN_ALERT "File has %ld pages. Cached:\n", count);
++	for(index = 0; index != count; ++index) {
++		struct page *page = find_get_page(mapping, index);
++		if(!IS_ERR(page) && page != NULL)
++			printk(KERN_ALERT "   %ld", index);
++	}
++}
++
++long enum_cached_pages(const char *filename)
++{
++	struct file *filp;
++	filp = filp_open(filename, 0, 0);
++	if(IS_ERR(filp)) filp = 0;
++	if(!filp) {
++		printk(KERN_ALERT "Unresolved filename %s\n", filename);
++		return -EBADF;
++	}
++	enum_pages(filp);
++	filp_close(filp, NULL); // Drivers use NULL here.
++	return 0;
++}
++EXPORT_SYMBOL(enum_cached_pages);
++
++SYSCALL_DEFINE1(enum_cached_pages, const char __user *, filename)
++{
++	char* kname = kmalloc(strlen(filename), GFP_KERNEL);
++	strncpy_from_user(kname, filename, strlen(filename));
++	long res =  enum_cached_pages(filename);
++	kfree(kname);
++	return res;
++}
+diff --git a/samples/enumpages_example/enumpages.c b/samples/enumpages_example/enumpages.c
+new file mode 100644
+index 0000000..97353cd
+--- /dev/null
++++ b/samples/enumpages_example/enumpages.c
+@@ -0,0 +1,17 @@
++#include <linux/module.h>
++#include "enumpages.h"
++MODULE_LICENSE("GPL");
++
++static int __init enumpages_init(void)
++{
++	enum_cached_pages("/root/log");
++	enum_cached_pages("/root/linux-3.7.10.tar.bz2");
++	return 0;
++}
++
++static void __exit enumpages_exit(void)
++{
++}
++
++module_init(enumpages_init);
++module_exit(enumpages_exit);
+diff --git a/samples/enumpages_example/enumpages.h b/samples/enumpages_example/enumpages.h
+new file mode 100644
+index 0000000..9261aca
+--- /dev/null
++++ b/samples/enumpages_example/enumpages.h
+@@ -0,0 +1,6 @@
++#ifndef _ENUMPAGES_H
++#define _ENUMPAGES_H
++
++extern long enum_cached_pages(const char *filename);
++
++#endif
+-- 
+1.8.2.1
+

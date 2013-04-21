@@ -1,0 +1,15 @@
+ampivovarov@gmail.com
+
+simple ramdisk block device driver
+
+* non-512 byte block size - wrong realization in LDD?
+
+References:
+    * http://blog.superpat.com/2010/05/04/a-simple-block-driver-for-linux-kernel-2-6-31/
+        Updated/Cutted version of LDD's "sbull" bdev
+    * /drivers/block/brd.c - kernel ramdisk bdev
+
+Modes:
+    * RM_SIMPLE - using kernel IO_Scheduler
+    * RM_NOQUEUE - without scheduler
+    - RM_FULL - scheduler implementation inside bdev/hardware - not implemented

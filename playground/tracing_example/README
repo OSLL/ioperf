@@ -1,0 +1,7 @@
+1. Requires CONFIG_SAMPLE_TRACE_EVENTS enabled
+2. Custom trace definitions go to custom-traces.h as TRACING(name)
+3. Using trace: TRACING_TAP(name);
+4. API: /sys/kernel/debug/tracing.
+   events/sample/enable - enable/disable all tracepoints
+   events/sample/tracing_name/enable - enable/disable tracepoint name
+   trace - log of all tracepoints including name, current task name and rdtsc timestamp

@@ -1,0 +1,10 @@
+; -- start job file --
+[global]
+rw=randwrite
+size= 2*$mb_memory
+numjobs = 24
+filename = thread-rand-writes.0
+group_reporting
+
+
+[thread-rand-writes.0]

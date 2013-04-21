@@ -1,0 +1,11 @@
+; -- start job file --
+[global]
+rw=write
+size= 2*$mb_memory
+numjobs = 24
+filename = thread-seq-writes.0
+group_reporting
+
+
+[thread-seq-writes.0]
+

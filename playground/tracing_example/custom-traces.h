@@ -1,0 +1,5 @@
+TRACING(start_free)
+TRACING(stop_free)
+TRACING(start_instr)
+TRACING(stop_instr)
+TRACING(go_instr)
