@@ -19,7 +19,6 @@ static ssize_t add_page(const char * buf, size_t count)
     struct address_space *mapping = filp->f_mapping;
     ssize_t ret = 0;
     loff_t pos = filp->f_pos;
-    
     ssize_t written = 0;
     
     do {
@@ -33,21 +32,7 @@ static ssize_t add_page(const char * buf, size_t count)
         cond_resched();
         
         page = find_get_page(mapping, index);
-        //                if (page) {
-        //                        int err = filemap_write_and_wait_range(mapping, pos, pos + bytes - 1);                        if (err == 0) {
-        //                                invalidate_mapping_pages(mapping,
-        //                                                         index,
-        //                                                         index);
-        //                                page = NULL;
-        //                        } else {
-        //
-        //                        }
-        //
-        //                }
         if (!page) {
-            
-            //                        printk (KERN_INFO "alloc page\n");
-            
             page =  page_cache_alloc_cold(mapping);
             status = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
             if (unlikely(status)) {
@@ -58,7 +43,6 @@ static ssize_t add_page(const char * buf, size_t count)
             }
             
         }
-        
         
         kaddr = kmap_atomic(page);
         memcpy(kaddr + offset, buf, bytes);
@@ -89,6 +73,25 @@ static ssize_t add_page(const char * buf, size_t count)
     return ret;
 }
 
+static void init_buf(char * buf)
+{
+    char tmp[]="*deadbeef*";
+    int size_tmp = strlen(tmp);
+    int cnt = PAGE_CACHE_SIZE/size_tmp;
+    char * ptr = buf;
+    int tail = 0;
+    int i = cnt;
+    
+    while(i--) {
+        memcpy(ptr, tmp, size_tmp);
+        ptr += size_tmp;
+    }
+    tail = PAGE_CACHE_SIZE - cnt*size_tmp;
+    
+    if (tail > 0) memcpy(ptr, tmp, tail);
+}
+
+
 static ssize_t direct_add_page_to_cache(char * buf, const char * pathname, size_t count_page)
 {
     ssize_t ret = 0;
@@ -97,35 +100,62 @@ static ssize_t direct_add_page_to_cache(char * buf, const char * pathname, size_
     if(IS_ERR(filp)) { filp = 0; ret = -EBADF;}
     
     if (filp) {
-        char tmp[]="*deadbeef*";
-        int size_tmp = strlen(tmp);
-        int cnt = PAGE_CACHE_SIZE/size_tmp;
-        char * ptr = buf;
-        int tail = 0;
-        int i = cnt;
+        loff_t pos = filp->f_pos;
+        loff_t end = pos + count_page * PAGE_CACHE_SIZE - 1;
+        struct address_space *mapping = filp->f_mapping;
+        struct inode *inode = filp->f_mapping->host;
         
-        while(i--) {
-            memcpy(ptr, tmp, size_tmp);
-            ptr += size_tmp;
+        init_buf(buf);
+        old_file_size = i_size_read(inode);
+        
+        /* flush pages from address_space */
+        
+        ret = filemap_write_and_wait_range(mapping, pos, end);
+        
+        if (ret) {
+            printk(KERN_INFO "filemap_write_and_wait_range failed:%d\n", ret);
+            goto out;
         }
-        tail = PAGE_CACHE_SIZE - cnt*size_tmp;
-        if (tail > 0) memcpy(ptr, tmp, tail);
         
-        old_file_size = i_size_read(filp->f_mapping->host);
+        if (mapping->nrpages) {
+            ret = invalidate_inode_pages2_range(mapping,
+                                                pos >> PAGE_CACHE_SHIFT, end);
+            if (ret) {
+                printk(KERN_INFO "invalidate_inode_pages2_range failed:%d\n", ret);
+                goto out;
+            }
+        }
         
+        /* deny syscalls write() to prevent data loss */
+        sb_start_write(inode->i_sb);
+        mutex_lock(&inode->i_mutex);
         while (count_page-- > 0) {
             ret = add_page(buf, PAGE_CACHE_SIZE);
             if (unlikely(ret)) break;
         }
-        
     }
     
+out:
     return ret;
 }
 
-static void clear_cache(size_t count_page)
+static ssize_t clear_cache(size_t count_page)
 {
     struct inode *inode = filp->f_mapping->host;
+    loff_t pos = 0;
+    loff_t end = pos + count_page * PAGE_CACHE_SIZE - 1;
+    struct address_space *mapping = filp->f_mapping;
+    int ret = 0;
+    
+    /* flush new pages from address_space */
+    
+    if (mapping->nrpages) {
+        ret = invalidate_inode_pages2_range(mapping,
+                                            pos >> PAGE_CACHE_SHIFT, end);
+        if (ret) {
+            printk(KERN_INFO "invalidate_inode_pages2_range failed:%d\n", ret);
+        }
+    }
     
     /**
      * not sure what all logic is executed, in ext3 need update inode's i_disksize
@@ -133,29 +163,37 @@ static void clear_cache(size_t count_page)
      */
     i_size_write(inode, old_file_size);
     
-    filp->f_pos = 0;
+    mutex_unlock(&inode->i_mutex);
+    sb_end_write(inode->i_sb);
     
+    filp->f_pos = 0;
     /* NULL, because calles direct filp_open without using files_struct */
     filp_close(filp, NULL);
+    return ret;
 }
 
 static int __init init(void)
 {
-	ssize_t ret;
-	printk(KERN_INFO "init\n");
+    ssize_t ret;
+    printk(KERN_INFO "init\n");
     
     ret = direct_add_page_to_cache(buf, "./file.txt", pagecount);
-	if (ret < 0) {
-		printk(KERN_INFO "errno:%d\n", ret);
-	}
+    if (ret < 0) {
+        printk(KERN_INFO "errno init:%d\n", ret);
+    }
     
-	return 0;
+    return 0;
 }
 
 static void __exit exit(void)
 {
-    clear_cache(pagecount);
-	printk(KERN_INFO "exit\n");
+    ssize_t ret;
+    ret = clear_cache(pagecount);
+    if (ret < 0) {
+        printk(KERN_INFO "errno exit:%d\n", ret);
+    }
+    
+    printk(KERN_INFO "exit\n");
 }
 
 module_init(init);
