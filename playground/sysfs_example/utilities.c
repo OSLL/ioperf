@@ -41,14 +41,14 @@ ssize_t add_pages_range(const char * pathname, pgoff_t index_start, pgoff_t inde
         ret = filemap_write_and_wait(mapping);
 
         if (ret) {
-                printk(KERN_INFO "filemap_write_and_wait is failed:%d\n", ret);
+                printk(KERN_INFO "filemap_write_and_wait is failed:%zd\n", ret);
                 goto close;
         }
 
         if (mapping->nrpages) {
                 ret = invalidate_inode_pages2(mapping);
                 if (ret) {
-                        printk(KERN_INFO "invalidate_inode_pages2 is failed:%d\n", ret);
+                        printk(KERN_INFO "invalidate_inode_pages2 is failed:%zd\n", ret);
                         goto close;
                 }
         }
@@ -74,14 +74,14 @@ ssize_t add_pages_range(const char * pathname, pgoff_t index_start, pgoff_t inde
                 ret = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
                 if (unlikely(ret)) {
                         page_cache_release(page);
-             	        printk(KERN_INFO "add_to_page_cahe_lru is failed: %d\n", ret);
+             	        printk(KERN_INFO "add_to_page_cahe_lru is failed: %zd\n", ret);
                         goto close;
                 }
 
                 /* unlock_page into readpage*/
                 ret = mapping->a_ops->readpage(filp, page);
                 if (unlikely(ret)) {
-             	        printk(KERN_INFO "readpage is failed: %d\n", ret);
+             	        printk(KERN_INFO "readpage is failed: %zd\n", ret);
                         goto close;
                 }
 
@@ -132,14 +132,14 @@ ssize_t force_cache(const char * pathname)
         ret = filemap_write_and_wait(mapping);
 
         if (ret) {
-                printk(KERN_INFO "filemap_write_and_wait is failed:%d\n", ret);
+                printk(KERN_INFO "filemap_write_and_wait is failed:%zd\n", ret);
                 goto close;
         }
 
         if (mapping->nrpages) {
                 ret = invalidate_inode_pages2(mapping);
                 if (ret) {
-                        printk(KERN_INFO "invalidate_inode_pages2 is failed:%d\n", ret);
+                        printk(KERN_INFO "invalidate_inode_pages2 is failed:%zd\n", ret);
                         goto close;
                 }
         }

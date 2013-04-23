@@ -137,19 +137,19 @@ static ssize_t start_store(struct utility_obj *util_obj, struct utility_attribut
                         ret = add_pages_range(util_obj->pathname,
                                         util_obj->r->rstart,  util_obj->r->rend);
                         if (ret < 0) {
-                                printk (KERN_ALERT "add_pages_range is failed:%d\n", ret);
+                                printk (KERN_ALERT "add_pages_range is failed:%zd\n", ret);
                         }
                 } else if (util_obj == enumer_page_obj && util_obj->enum_log){
                         printk (KERN_INFO "enum %s\n", util_obj->pathname);            
                         ret = enum_cached_pages(util_obj->pathname, &util_obj->enum_log);
                         if (ret < 0) {
-                                printk (KERN_ALERT "enum_cached_pages is failed:%d\n", ret);
+                                printk (KERN_ALERT "enum_cached_pages is failed:%zd\n", ret);
                         }
                 } else if (util_obj == force_cache_obj) {
                         printk (KERN_INFO "force_cache %s\n", util_obj->pathname);
                         ret = force_cache(util_obj->pathname);
                         if (ret < 0) {
-                                printk (KERN_ALERT "force_cache is failed:%d\n", ret);
+                                printk (KERN_ALERT "force_cache is failed:%zd\n", ret);
                         }
                 }            
         }
