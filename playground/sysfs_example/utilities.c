@@ -209,7 +209,7 @@ ssize_t enum_cached_pages(const char * pathname, char ** log)
                 }
     	}
         
-        printk( KERN_INFO "%s\n",*log);
+        //printk( KERN_INFO "%s\n",*log);
 close:
         filp_close(filp, NULL);
 out:
