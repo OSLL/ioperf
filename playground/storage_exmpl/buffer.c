@@ -4,7 +4,7 @@
 /**
  * Gets positive reminder by value of b.
  *
- * arg a ineger value
+ * arg a integer value
  * arg b unsigned integer value
  * return reminder
  */ 
