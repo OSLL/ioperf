@@ -7,6 +7,14 @@
 #include <linux/swap.h>
 
 
+
+/**
+ * add_pages_range - first, forces all pages into cache, then adds range pages into cache.
+ * @pathname       - path to specified file
+ * @index_start    - index of page where range starts
+ * @index_end      - index of page where range ends (inclusive)
+ *
+ */
 static ssize_t add_pages_range(const char * pathname, pgoff_t index_start, pgoff_t index_end)
 {
     ssize_t ret = 0;
@@ -70,7 +78,7 @@ static ssize_t add_pages_range(const char * pathname, pgoff_t index_start, pgoff
             goto close;
         }
         
-        /* ulock_page into readpage*/
+        /* unlock_page into readpage*/
         ret = mapping->a_ops->readpage(filp, page);
         if (unlikely(ret)) {
             printk(KERN_INFO "readpage is failed: %d\n", ret);
@@ -96,7 +104,11 @@ out:
     return ret;
 }
 
-
+/**
+ * force_cache     - force pages from cache for specified file
+ * @pathname       - path to specified file
+ *
+ */
 static ssize_t force_cache(const char * pathname)
 {
     ssize_t ret = 0;
@@ -142,7 +154,11 @@ out:
 }
 
 
-
+/**
+ * enum_cached_pages    - enumeration page into cache
+ * @pathname            - path to specified file
+ *
+ */
 ssize_t enum_cached_pages(const char * pathname)
 {
     ssize_t ret = 0;
@@ -202,4 +218,4 @@ module_exit(exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("vadim.lomshakov@gmail.com");
-MODULE_DESCRIPTION("Utility functions for io perfomance test: enumeration page into cache, force cache from adress space, add range pages into cache.");
+MODULE_DESCRIPTION("Utility functions for io perfomance test: enumeration page into cache, force pages from cache, add range pages into cache.");
