@@ -87,6 +87,7 @@ static int mimfs_writepages(struct address_space *mapping,
 static int mimfs_write_begin(struct file *file, struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
 			     struct page **pagep, void **fsdata) {
+        //printk("MIMFS: Write begin\n");
         return block_write_begin(mapping, pos, len, flags,
 				 pagep, mimfs_get_block);
 }
@@ -94,6 +95,7 @@ static int mimfs_write_begin(struct file *file, struct address_space *mapping,
 static int mimfs_write_end(struct file *file, struct address_space *mapping,
 			  loff_t pos, unsigned len, unsigned copied,
 			  struct page *page, void *fsdata) {
+        //printk("MIMFS: Write end\n");
         return generic_write_end(file, mapping, pos, len, copied, page, fsdata);
  }
 
@@ -101,6 +103,7 @@ static int mimfs_write_end(struct file *file, struct address_space *mapping,
 static ssize_t mimsf_direct_IO(int rw, struct kiocb *iocb,
 			       const struct iovec *iov,
 			       loff_t offset, unsigned long nr_segs) {
+        //printk("MIMFS: DirectIO - %d\n", rw);
         return blockdev_direct_IO(rw, iocb, 
 				  iocb->ki_filp->f_mapping->host,
 				  iov, offset, nr_segs, mimfs_get_block);
@@ -178,6 +181,7 @@ static const struct inode_operations mimfs_dir_inode_ops = {
         .create = mimfs_inode_create,
         .mknod  = mimfs_inode_mknode,
 	.lookup = simple_lookup,
+	.unlink = simple_unlink,
 };
 
 //******************************************************************************
