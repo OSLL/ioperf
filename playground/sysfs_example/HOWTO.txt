@@ -1,0 +1,15 @@
+author: Vadim Lomshakov (vadim.lomshakov@gmail.com)
+
+------------------------------------------------------------------
+        Folder '/sys/ioperf_cache_utility/' contains folders basic function: force_cache, add_page_range, ...
+Inside these folders contains the settings files and startup file("start").
+------------------------------------------------------------------
+        How to run any function:
+1) go to this function's directory 
+2) filled function parameters (bash$ echo "value_parametr" > file_parametr)
+3) write "1" to file "start"
+------------------------------------------------------------------
+        File formats to write:
+pathname - some_string (absolute pathname!!!)
+range    - "start_index end_index"
+start    - "1"
