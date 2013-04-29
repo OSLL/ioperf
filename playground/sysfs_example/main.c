@@ -20,11 +20,13 @@ ssize_t force_cache(const char * pathname);
 ssize_t enum_cached_pages(const char * pathname, char ** log);
 
 /*----------------------------------------------------------------*/
+
 struct range {
     unsigned long rstart;
     unsigned long rend;
 };
 
+/* Object of utility in sysfs */
 struct utility_obj {
         struct kobject kobj;
         char pathname[PATH_LEN];
@@ -35,20 +37,22 @@ struct utility_obj {
 };
 #define to_utility_obj(x) container_of(x, struct utility_obj, kobj)
 
+
 static struct kset *utility_kset;
 static struct utility_obj *force_cache_obj;
 static struct utility_obj *enumer_page_obj;
 static struct utility_obj *add_range_obj;
 
 
+/*----------------------------------------------------------------*/
+
+/* Attribute for utility_obj */
 struct utility_attribute {
         struct attribute attr;
         ssize_t (*show)(struct utility_obj *foo, struct utility_attribute *attr, char *buf);
         ssize_t (*store)(struct utility_obj *foo, struct utility_attribute *attr, const char *buf, size_t count);
 };
 #define to_utility_attr(x) container_of(x, struct utility_attribute, attr)
-
-
 
 static ssize_t utility_attr_show(struct kobject *kobj,
 			     struct attribute *attr,
@@ -88,6 +92,7 @@ static const struct sysfs_ops utility_sysfs_ops = {
         .store = utility_attr_store,
 };
 
+/*----------------------------------------------------------------*/
 
 static void utility_release(struct kobject *kobj)
 {
@@ -132,19 +137,19 @@ static ssize_t start_store(struct utility_obj *util_obj, struct utility_attribut
                         ret = add_pages_range(util_obj->pathname,
                                         util_obj->r->rstart,  util_obj->r->rend);
                         if (ret < 0) {
-                                printk (KERN_ALERT "add_pages_range is failed:%d\n", ret);
+                                printk (KERN_ALERT "add_pages_range is failed:%zd\n", ret);
                         }
                 } else if (util_obj == enumer_page_obj && util_obj->enum_log){
                         printk (KERN_INFO "enum %s\n", util_obj->pathname);            
                         ret = enum_cached_pages(util_obj->pathname, &util_obj->enum_log);
                         if (ret < 0) {
-                                printk (KERN_ALERT "enum_cached_pages is failed:%d\n", ret);
+                                printk (KERN_ALERT "enum_cached_pages is failed:%zd\n", ret);
                         }
                 } else if (util_obj == force_cache_obj) {
                         printk (KERN_INFO "force_cache %s\n", util_obj->pathname);
                         ret = force_cache(util_obj->pathname);
                         if (ret < 0) {
-                                printk (KERN_ALERT "force_cache is failed:%d\n", ret);
+                                printk (KERN_ALERT "force_cache is failed:%zd\n", ret);
                         }
                 }            
         }
@@ -171,6 +176,8 @@ static struct kobj_type utility_ktype = {
         .default_attrs = utility_default_attrs,
 };
 
+/*----------------------------------------------------------------*/
+/* Specific attributes */
 static ssize_t range_show(struct utility_obj *util_obj, struct utility_attribute *attr,
                     char *buf)
 {
@@ -205,7 +212,10 @@ static ssize_t log_store(struct utility_obj *util_obj, struct utility_attribute 
 static struct utility_attribute log_attribute =
         __ATTR(log, 0444, log_show, log_store);
 
-
+/**
+ * Creates object with specified name in sysfs
+ * @name    - specified name
+ */
 static struct utility_obj *create_utility_obj(const char *name)
 {
         struct utility_obj *util;
@@ -228,6 +238,10 @@ static struct utility_obj *create_utility_obj(const char *name)
         return util;
 }
 
+/**
+ * Adds specific attribute - range for specified utility_obj
+ * @obj     -  specified utility_obj
+ */
 static ssize_t init_add_range_obj(struct utility_obj * obj)
 {
         int ret;
@@ -239,6 +253,10 @@ static ssize_t init_add_range_obj(struct utility_obj * obj)
         return ret;
 }
 
+/**
+ * Adds specific attribute - log for specified utility_obj
+ * @obj     -  specified utility_obj
+ */
 static ssize_t init_enumer_page_obj(struct utility_obj * obj)
 {
         int ret;
@@ -250,6 +268,10 @@ static ssize_t init_enumer_page_obj(struct utility_obj * obj)
         return ret;    
 }
 
+/**
+ * Release count ref of specified utility_obj
+ * @obj     -  specified utility_obj
+ */
 static void destroy_utility_obj(struct utility_obj *util)
 {
         kobject_put(&util->kobj);
