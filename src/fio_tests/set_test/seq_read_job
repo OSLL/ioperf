@@ -1,0 +1,18 @@
+; -- start job file --
+[sequential-reads]
+rw=read
+
+directory=./workdir/
+
+size=512M
+filesize=4G
+blocksize=4k
+
+ioengine=sync
+direct=0
+
+nice=0
+prio=0
+
+  
+; -- end job file --
