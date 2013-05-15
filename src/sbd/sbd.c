@@ -166,7 +166,7 @@ static int __init sbd_init(void) {
      */
     Device.size = nsectors * logical_block_size;
     spin_lock_init(&Device.lock);
-    Device.data = vmalloc(Device.size);
+    Device.data = vzalloc(Device.size);
     if (Device.data == NULL)
         return -ENOMEM;
     /*
