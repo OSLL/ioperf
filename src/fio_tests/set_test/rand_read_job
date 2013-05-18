@@ -1,0 +1,22 @@
+; -- start job file --
+[random-reads]
+rw=randread
+
+directory=./workdir/
+
+size=128M
+filesize=4G
+blocksize=4k
+
+ioengine=sync
+direct=0
+
+nice=0
+prio=0
+
+; iodepth=1
+; thinktime=0
+; cpumask=255
+; exec_prerun=...
+
+; -- end job file --
