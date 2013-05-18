@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/statfs.h>
 #include <linux/writeback.h>
+#include <linux/bitmap.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Artur Guletzky <hatless.fox@gmail.com>");
@@ -42,20 +43,46 @@ static sector_t get_total_file_blocks(struct super_block *sb) {
 	  total_device_blcks;
 }
 
-static void init_inode_meta(struct super_block *sb, struct inode *inode) {
+struct fs_meta {
+        loff_t fsm_inode_size;
+        sector_t fsm_nr_blocks;
+        unsigned int fsm_bitmap_size;
+        unsigned long * fsm_blocks_bitmap;
+} fs_meta;
+
+static void load_fs_meta(struct super_block *sb) {
        struct buffer_head *bh = sb_bread(sb, 0);
-       void *data = bh->b_data;
-       inode->i_size = *((loff_t *)data);
-       data = (void *)(((loff_t *)data) + 1);
-       inode->i_blocks = *((blkcnt_t *) data);
+       struct fs_meta *meta = (struct fs_meta *) bh->b_data;
+
+       fs_meta.fsm_inode_size = meta->fsm_inode_size;
+       fs_meta.fsm_nr_blocks = meta->fsm_nr_blocks;
+
+       //TODO move this to formating
+       if (unlikely(fs_meta.fsm_nr_blocks == 0)) {
+               fs_meta.fsm_nr_blocks = get_total_file_blocks(sb);
+       }
+       fs_meta.fsm_bitmap_size = fs_meta.fsm_nr_blocks / BITS_PER_LONG +
+	       ((fs_meta.fsm_nr_blocks % BITS_PER_LONG) ? 1 : 0);
+
+       fs_meta.fsm_bitmap_size *= sizeof(unsigned long);
+
+       fs_meta.fsm_blocks_bitmap = vmalloc(fs_meta.fsm_bitmap_size);
+       memcpy(fs_meta.fsm_blocks_bitmap, &meta->fsm_blocks_bitmap, fs_meta.fsm_bitmap_size); 
+       bitmap_allocate_region(fs_meta.fsm_blocks_bitmap, 0, 0);
+
        brelse(bh);
 }
 
-static void save_inode_meta(struct super_block *sb, struct inode *inode) {
+static void store_fs_meta(struct super_block *sb) {
         struct buffer_head *bh = sb_bread(sb, 0);
-	void *data = bh->b_data;
-	*((loff_t *)data++) = inode->i_size;
-	*((blkcnt_t *)data) = inode->i_blocks;
+	struct fs_meta *meta = (struct fs_meta *) bh->b_data;
+
+	meta->fsm_inode_size  = fs_meta.fsm_inode_size;
+	meta->fsm_nr_blocks   = fs_meta.fsm_nr_blocks;
+	meta->fsm_bitmap_size = fs_meta.fsm_bitmap_size;
+	memcpy(&meta->fsm_blocks_bitmap, fs_meta.fsm_blocks_bitmap, fs_meta.fsm_bitmap_size);
+	vfree(fs_meta.fsm_blocks_bitmap);
+
 	mark_buffer_dirty(bh);
 	brelse(bh);
 }
@@ -64,13 +91,11 @@ static int mimfs_get_block(struct inode *inode,    //file's inode
 			   sector_t iblock,        //file's block number
 			   struct buffer_head *bh, //bh to initalize
 			   int create) {           //XX what is precise meaning?
-        //TODO null check
-        sector_t total_device_blcks = get_capacity(inode->i_sb->s_bdev->bd_disk); 
 	sector_t total_file_blcks   = get_total_file_blocks(inode->i_sb);
 	sector_t mapped_sector      = 0;
 
 	//now we assuming that file is single.
-	if (iblock >= total_device_blcks) { return -ENOSPC; }
+	if (iblock >= total_file_blcks) { return -ENOSPC; }
 
 	mapped_sector = total_file_blcks - iblock - 1;
 
@@ -79,10 +104,14 @@ static int mimfs_get_block(struct inode *inode,    //file's inode
 	//printk("MIMFS: Block with number %lu is required out of %lu. Mapped to %lu\n",
         //    iblock, total_file_blcks, mapped_sector);
 	if (!buffer_mapped(bh)) {
-	    printk("MIMFS: Buffer head hasn't been mapped for block with number %lu\n", iblock); 
-	    return -1;
+ 	        printk("MIMFS: Buffer head hasn't been mapped for block with number %lu\n", iblock); 
+	        return -1;
 	}
 	
+	//assume every mapped blocks as busy. Probably there is a better way to track blocks
+	// plain bit set would be OK, but it would add unnecessary ``arch'' dependency
+	bitmap_allocate_region(fs_meta.fsm_blocks_bitmap, mapped_sector, 0);
+
         return 0;
 }
 
@@ -165,7 +194,8 @@ static struct inode *mimfs_get_inode(struct super_block *sb,
         case S_IFREG: //regular file
                 //inode->i_op
 	        data_file_inode = inode;
-		init_inode_meta(sb, inode);
+		inode->i_ino = 42;
+		inode->i_size = fs_meta.fsm_inode_size;
                 inode->i_fop = &mimfs_file_ops;
                 break;
         case S_IFDIR: //directory
@@ -216,13 +246,35 @@ static const struct file_operations mimfs_file_ops = {
 //******************************************************************************
 // Superblock related operations
 
+static void printdbg_blocks_bitmask(void) {
+        unsigned int long_i = 0;
+	unsigned int bit = 0;
+
+	//I know about ``bitmap_scnprintf'' but I'm not too smart to use it
+	//both in code and in ``look through'' analysis
+	printk("Blocks bitmap:\n");
+	while (long_i < fs_meta.fsm_bitmap_size / sizeof(unsigned long)) {
+	        printk("%c", (*(fs_meta.fsm_blocks_bitmap + long_i) & (1 << bit)) ? 'X' : 'O');
+		bit++;
+		if (bit == BITS_PER_LONG) {
+		        bit = 0;
+			long_i++;
+		}
+	}
+	printk("\n");
+}
+
 static int mimfs_statfs (struct dentry * dentry, struct kstatfs * buf) {
         struct super_block *sb = dentry->d_sb;
+
+	printdbg_blocks_bitmask();
+
         buf->f_type = MIMFS_MAGIC;
         buf->f_bsize = sb->s_blocksize;
         buf->f_blocks = get_total_file_blocks(sb);
 	// one is for metadata block
-        buf->f_bfree = buf->f_blocks - data_file_inode->i_blocks - 1;
+        buf->f_bfree = buf->f_blocks - 
+	  bitmap_weight(fs_meta.fsm_blocks_bitmap, fs_meta.fsm_nr_blocks);
         buf->f_bavail = buf->f_bfree;
         buf->f_files = data_file_inode->i_nlink;;
         //buf->f_ffree =
@@ -255,7 +307,7 @@ static int create_file(struct inode *parent, struct dentry *pdentry,
 	file_inode = mimfs_get_inode(parent->i_sb, parent,
 				     S_IFREG | MIMFS_DEFAULT_MODE);
 	if (file_inode) {
-	  d_add(file_dentry, file_inode);
+	        d_add(file_dentry, file_inode);
 	}
 
 	return file_inode ? 0 : -1;
@@ -284,7 +336,7 @@ static int mimfs_fill_super(struct super_block *sb, void *data, int silent) {
         if (!sb->s_root) { return -1; }
         
 	//printk("MIMFS: Root dir was initalized\n");
-	//smoketest
+	load_fs_meta(sb);
 	create_file(root_node, sb->s_root, "data");
 	
         return 0;
@@ -296,7 +348,8 @@ struct dentry* mimfs_mount(struct file_system_type *fst, int flags,
 }
 
 static void mimfs_kill_block_super(struct super_block *sb) {
-        save_inode_meta(sb, data_file_inode);
+        fs_meta.fsm_inode_size = data_file_inode->i_size; 
+        store_fs_meta(sb);
         write_inode_now(data_file_inode, 1);
         kill_litter_super(sb);
 }
