@@ -223,7 +223,7 @@ static struct utility_obj *create_utility_obj(const char *name)
 
         util = kzalloc(sizeof(*util), GFP_KERNEL);
         if (!util)
-            return NULL;
+                return NULL;
         
         util->kobj.kset = utility_kset;
         
@@ -248,7 +248,7 @@ static ssize_t init_add_range_obj(struct utility_obj * obj)
     
         obj->r = kzalloc(sizeof(*(obj->r)), GFP_KERNEL);
         if (!obj->r)
-            return -EINVAL;
+                return -EINVAL;
         ret = sysfs_create_file(&obj->kobj, &range_attribute.attr);
         return ret;
 }
@@ -263,7 +263,7 @@ static ssize_t init_enumer_page_obj(struct utility_obj * obj)
         
         obj->enum_log = kzalloc(1, GFP_KERNEL);
         if (!obj->r)
-            return -EINVAL;
+                return -EINVAL;
         ret = sysfs_create_file(&obj->kobj, &log_attribute.attr);
         return ret;    
 }
@@ -284,7 +284,7 @@ static int __init init(void)
         
         utility_kset = kset_create_and_add("ioperf_cache_utility", NULL, NULL);
         if (!utility_kset) {
-            return -ENOMEM;
+                return -ENOMEM;
         }
         
         force_cache_obj = create_utility_obj("force_cache");
@@ -323,7 +323,7 @@ force_error:
 
 static void __exit exit(void)
 {
-	    printk(KERN_INFO "exit\n");
+        printk(KERN_INFO "exit\n");
         destroy_utility_obj(force_cache_obj);
         destroy_utility_obj(enumer_page_obj);
         destroy_utility_obj(add_range_obj);
