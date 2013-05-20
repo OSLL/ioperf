@@ -1,22 +1,21 @@
-From 1091ed3a2636ef0c4dc3c0e4a23cfd3f068b4564 Mon Sep 17 00:00:00 2001
+From 67faa27e8d37025bbd7ada7d0618105acd2767d1 Mon Sep 17 00:00:00 2001
 From: Alexander Shabalin <shabalyn.a@gmail.com>
-Date: Tue, 23 Apr 2013 18:59:15 +0400
-Subject: [PATCH] IO benchmarking - traces backend
+Date: Sun, 19 May 2013 17:27:14 +0400
+Subject: [PATCH] Updated tracing
 
 diff --git a/include/trace/events/io-bench-custom-traces.h b/include/trace/events/io-bench-custom-traces.h
 new file mode 100644
-index 0000000..c483c58
+index 0000000..ca9401e
 --- /dev/null
 +++ b/include/trace/events/io-bench-custom-traces.h
-@@ -0,0 +1,2 @@
+@@ -0,0 +1 @@
 +TRACING(read)
-+TRACING(write)
 diff --git a/include/trace/events/io-bench.h b/include/trace/events/io-bench.h
 new file mode 100644
-index 0000000..fa5a249
+index 0000000..d5993bf
 --- /dev/null
 +++ b/include/trace/events/io-bench.h
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,51 @@
 +#undef TRACE_SYSTEM
 +#define TRACE_SYSTEM io-bench
 +
@@ -40,9 +39,7 @@ index 0000000..fa5a249
 +   TP_PROTO(const char* extra), \
 +   TP_ARGS(extra), \
 +   TP_STRUCT__entry( \
-+      __field(ticks, tsc) \
 +      __field(s64, nanosec) \
-+      __field(s64, monotonicnanosec) \
 +      __array(char, extra, 50) \
 +   ), \
 +   TP_fast_assign( \
@@ -50,17 +47,13 @@ index 0000000..fa5a249
 +      __asm__ volatile("lfence") \
 +      __asm__ volatile("rdtsc" : "=a"(a), "=d"(d)); \
 +      __entry->time = (((ticks)a) | (((ticks)d) << 32)); */ \
-+      struct timeval tv; \
 +      struct timespec ts; \
-+      do_gettimeofday(&tv); \
 +      getrawmonotonic(&ts); \
-+      __entry->tsc = native_read_tsc(); \
-+      __entry->nanosec = timeval_to_ns(&tv); \
-+      __entry->monotonicnanosec = timespec_to_ns(&ts); \
++      __entry->nanosec = timespec_to_ns(&ts); \
 +      strncpy(__entry->extra, extra, 50); \
 +   ), \
-+   TP_printk("IO-bench " #tname ":%s tsc %llu nanosec %lld monotonic %lld\n", \
-+      __entry->extra, __entry->tsc, __entry->nanosec, __entry->monotonicnanosec) \
++   TP_printk("IO-bench " #tname ":%s nanosec %lld\n", \
++      __entry->extra, __entry->nanosec) \
 +); \
 +EXPORT_TRACING(tname)
 +
