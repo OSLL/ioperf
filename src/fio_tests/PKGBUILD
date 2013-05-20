@@ -1,0 +1,22 @@
+# Maintainer: John Williams <jwilliams4200 liamg reverse&remove moc>
+pkgname=fio
+pkgver=1.58
+pkgrel=1
+pkgstr=${pkgver}
+pkgdesc="scriptable I/O tool for storage benchmarks and drive testing"
+arch=('x86_64' 'i686')
+url="http://freshmeat.net/projects/fio"
+license=('GPL2')
+depends=('libaio' 'bash')
+source=("http://brick.kernel.dk/snaps/fio-${pkgstr}.tar.bz2")
+
+build() {
+    cd $srcdir/fio-${pkgstr}
+    make
+}
+
+package() {
+    cd $srcdir/fio-${pkgstr}
+    make DESTDIR="${pkgdir}" prefix="/usr" mandir="/usr/share/man" install
+}
+sha256sums=('c1477f68183c7dd892218a1e2bfab8c21b98c01bf9b724694291325914042207')

@@ -1,0 +1,121 @@
+From 67faa27e8d37025bbd7ada7d0618105acd2767d1 Mon Sep 17 00:00:00 2001
+From: Alexander Shabalin <shabalyn.a@gmail.com>
+Date: Sun, 19 May 2013 17:27:14 +0400
+Subject: [PATCH] Updated tracing
+
+diff --git a/include/trace/events/io-bench-custom-traces.h b/include/trace/events/io-bench-custom-traces.h
+new file mode 100644
+index 0000000..ca9401e
+--- /dev/null
++++ b/include/trace/events/io-bench-custom-traces.h
+@@ -0,0 +1 @@
++TRACING(read)
+diff --git a/include/trace/events/io-bench.h b/include/trace/events/io-bench.h
+new file mode 100644
+index 0000000..d5993bf
+--- /dev/null
++++ b/include/trace/events/io-bench.h
+@@ -0,0 +1,51 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM io-bench
++
++#if !defined(_TRACING_IO_BENCH_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACING_IO_BENCH_H
++
++#include <linux/tracepoint.h>
++#include <asm/msr.h>
++#include <linux/time.h>
++
++typedef unsigned long long ticks;
++
++#ifdef CREATE_TRACE_POINTS
++#define EXPORT_TRACING(name) EXPORT_TRACEPOINT_SYMBOL(tracing_##name);
++#else
++#define EXPORT_TRACING(name)
++#endif
++
++#define TRACING(tname) \
++TRACE_EVENT(tracing_##tname, \
++   TP_PROTO(const char* extra), \
++   TP_ARGS(extra), \
++   TP_STRUCT__entry( \
++      __field(s64, nanosec) \
++      __array(char, extra, 50) \
++   ), \
++   TP_fast_assign( \
++      /* unsigned a, d; \
++      __asm__ volatile("lfence") \
++      __asm__ volatile("rdtsc" : "=a"(a), "=d"(d)); \
++      __entry->time = (((ticks)a) | (((ticks)d) << 32)); */ \
++      struct timespec ts; \
++      getrawmonotonic(&ts); \
++      __entry->nanosec = timespec_to_ns(&ts); \
++      strncpy(__entry->extra, extra, 50); \
++   ), \
++   TP_printk("IO-bench " #tname ":%s nanosec %lld\n", \
++      __entry->extra, __entry->nanosec) \
++); \
++EXPORT_TRACING(tname)
++
++#define TRACING_TAP(tname, arg) trace_tracing_##tname(arg)
++
++// Your traces go to this header
++#include "io-bench-custom-traces.h"
++
++#undef EXPORT_TRACING
++
++#endif /* _TRACING_IO_BENCH_H */
++
++#include <trace/define_trace.h>
+diff --git a/kernel/trace/Kconfig b/kernel/trace/Kconfig
+index 4cea4f4..212ba3c 100644
+--- a/kernel/trace/Kconfig
++++ b/kernel/trace/Kconfig
+@@ -516,6 +516,10 @@ config RING_BUFFER_BENCHMARK
+ 
+ 	  If unsure, say N.
+ 
++config IO_BENCH
++	tristate "Tracer from IO benchmarking suite"
++	select GENERIC_TRACER
++
+ endif # FTRACE
+ 
+ endif # TRACING_SUPPORT
+diff --git a/kernel/trace/Makefile b/kernel/trace/Makefile
+index d7e2068..d664606 100644
+--- a/kernel/trace/Makefile
++++ b/kernel/trace/Makefile
+@@ -60,5 +60,8 @@ obj-$(CONFIG_KGDB_KDB) += trace_kdb.o
+ endif
+ obj-$(CONFIG_PROBE_EVENTS) += trace_probe.o
+ obj-$(CONFIG_UPROBE_EVENT) += trace_uprobe.o
++ifeq ($(CONFIG_TRACING),y)
++obj-$(CONFIG_IO_BENCH) += io-bench.o
++endif
+ 
+ libftrace-y := ftrace.o
+diff --git a/kernel/trace/io-bench.c b/kernel/trace/io-bench.c
+new file mode 100644
+index 0000000..7991037
+--- /dev/null
++++ b/kernel/trace/io-bench.c
+@@ -0,0 +1,18 @@
++#include <linux/module.h>
++
++#define CREATE_TRACE_POINTS
++#include <trace/events/io-bench.h>
++
++static int __init io_bench_init(void)
++{
++   return 0;
++}
++
++static void __exit io_bench_exit(void)
++{
++   return;
++}
++
++module_init(io_bench_init);
++module_exit(io_bench_exit);
++MODULE_LICENSE("GPL");
