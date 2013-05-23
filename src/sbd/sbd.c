@@ -28,7 +28,7 @@ module_param(major_num, int, 0);
 static int logical_block_size = 512;
 module_param(logical_block_size, int, 0);
 static int nsectors = 1024; /* How big the drive is */
-module_param(nsectors, int, 0);
+module_param(nsectors, long, 0);
 
 enum {
         RM_SIMPLE  = 0, /* The extra-simple request function */
