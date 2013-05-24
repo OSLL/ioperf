@@ -1,0 +1,17 @@
+In extract.awk is a logic of converting trace to a datafile that splot undestands.
+Color setting of tracepoints is also located there.
+
+Usage:
+
+Let `your_trace_file` be your copy of /sys/kernel/debug/tracing/trace
+
+` awk '{print $1}' your_trace_file | sort -u `
+will give a list of all different task names that are recorded in the trace.
+
+Let `your_task_name` be a task name that you are investigating
+
+` grep your_task_name your_trace_file | ./extract.awk > your_trace_file.data `
+will convert trace file to a data that splot understands.
+
+Example of using splot:
+` splot -w 1000 -h 500 -tickInterval 1 -legendWidth 150 -tf elapsed -o your_trace_file.png -if your_trace_file.data -fromTime 227.758 -toTime 227.7611`
